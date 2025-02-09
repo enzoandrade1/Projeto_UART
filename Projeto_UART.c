@@ -67,16 +67,6 @@ void colorir(uint8_t r, uint8_t g, uint8_t b) {
     gpio_put(LED_AZUL_PIN, b);
 }
 
-// Liga o LED verde
-void ligar_led_verde() {
-    colorir(0, 1, 0);
-}
-
-// Liga o LED azul
-void ligar_led_azul() {
-    colorir(0, 0, 1);
-}
-
 // Inicializa o display OLED
 void inicializar_display() {
     i2c_init(i2c1, ssd1306_i2c_clock * 1000);
@@ -107,8 +97,10 @@ void exibir_caracter(char *text) {
 
     // Exibe cada caractere centralizado
     for (uint i = 0; i < strlen(text); i++) {
-        ssd1306_draw_char(ssd, x, y, text[i]);
-        x += 6; // Move para a próxima coluna (espaço entre caracteres)
+        if (text[i] != ' ') { // Verifica se o caractere não é um espaço
+            ssd1306_draw_char(ssd, x, y, text[i]);
+        }
+        x += 8; // Aumenta para 8px para garantir um espaçamento extra entre os caracteres
         if (x > ssd1306_width - 6) { // Quebra de linha se necessário
             x = (ssd1306_width - 6) / 2;
             y += 1; // Próxima linha (próxima página)
@@ -117,6 +109,7 @@ void exibir_caracter(char *text) {
 
     render_on_display(ssd, &frame_area); // Renderiza
 }
+
 
 void exibir_texto_multilinha(char *linhas[], uint8_t num_linhas) {
     // Limpa o buffer do display
@@ -135,6 +128,9 @@ void exibir_texto_multilinha(char *linhas[], uint8_t num_linhas) {
     render_on_display(ssd, &frame_area);
 }
 
+// Variáveis globais para armazenar o estado dos LEDs
+bool led_verde_estado = false;
+bool led_azul_estado = false;
 
 int main() {
     char comando[2];
@@ -145,44 +141,51 @@ int main() {
     init_buttons();                  // Inicializa os botões
     inicializar_display();           // Inicializa o display OLED
 
-    while (1) {
-        int c = getchar_timeout_us(0); // Tenta ler sem bloquear os botões (timeout imediato)
-        if (c != PICO_ERROR_TIMEOUT) {
-            comando[0] = (char)c;
-            comando[1] = '\0';         // Garante que a string esteja terminada corretamente
 
-            // Processa o comando lido
-            if (comando[0] >= '0' && comando[0] <= '9') {
-                exibir_numero(pio, sm, comando[0] - '0'); // Exibe número na matriz de LEDs
-            } else if (comando[0] >= 'a' && comando[0] <= 'z') {
-                exibir_caracter(comando);  // Exibe caractere minúsculo no display OLED
-            }
+while (1) {
+    int c = getchar_timeout_us(0);
+    if (c != PICO_ERROR_TIMEOUT) {
+        comando[0] = (char)c;
+        comando[1] = '\0';
+
+        if (comando[0] >= '0' && comando[0] <= '9') {
+            exibir_numero(pio, sm, comando[0] - '0');
+        } else if (comando[0] >= 'a' && comando[0] <= 'z') {
+            exibir_caracter(comando);
         }
-
-         // Verifica os botões independentemente da entrada
-        if (is_button_a_pressed()) {
-            ligar_led_verde();
-
-            // Exibe mensagem no display OLED
-            char *msg_verde[] = { " LED VERDE ", "   LIGADO   " };
-            exibir_texto_multilinha(msg_verde, 2);
-
-            printf("LED Verde Ligado\n");
-        }
-
-        if (is_button_b_pressed()) {
-            ligar_led_azul();
-
-            // Exibe mensagem no display OLED
-            char *msg_azul[] = { "  LED AZUL ", "   LIGADO   " };
-            exibir_texto_multilinha(msg_azul, 2);
-
-            printf("LED Azul Ligado\n");
-        }
-
-        // Pequeno delay para evitar uso excessivo da CPU
-        sleep_ms(10);
     }
+
+    // Alterna LED Verde
+    if (is_button_a_pressed()) {
+        led_verde_estado = !led_verde_estado;  // Inverte o estado do LED Verde
+        led_azul_estado = false;              // Garante que o LED Azul será desligado
+        colorir(0, led_verde_estado, 0);      // Atualiza os LEDs
+
+        char *msg_verde[] = { " led verde ", led_verde_estado ? "   ligado   " : "  desligado " };
+        exibir_texto_multilinha(msg_verde, 2);
+
+        printf("LED Verde %s\n", led_verde_estado ? "Ligado" : "Desligado");
+        sleep_ms(300);  // Debounce
+    }
+
+    // Alterna LED Azul
+    if (is_button_b_pressed()) {
+        led_azul_estado = !led_azul_estado;  // Inverte o estado do LED Azul
+        led_verde_estado = false;            // Garante que o LED Verde será desligado
+        colorir(0, 0, led_azul_estado);      // Atualiza os LEDs
+
+        char *msg_azul[] = { "  led azul ", led_azul_estado ? "   ligado   " : "  desligado " };
+        exibir_texto_multilinha(msg_azul, 2);
+
+        printf("LED Azul %s\n", led_azul_estado ? "Ligado" : "Desligado");
+        sleep_ms(300);  // Debounce
+    }
+
+    sleep_ms(10);
+}
+
 
     return 0;
 }
+
+

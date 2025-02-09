@@ -133,17 +133,17 @@ void ssd1306_draw_line(uint8_t *ssd, int x_0, int y_0, int x_1, int y_1, bool se
 }
 
 // Adquire os pixels para um caractere (de acordo com ssd1306_font.h)
-inline int ssd1306_get_font(uint8_t character)
-{
-  if (character >= 'A' && character <= 'Z') {
-    return character - 'A' + 1;
-  }
-  else if (character >= '0' && character <= '9') {
-    return character - '0' + 27;
-  }
-  else
-    return 0;
+inline int ssd1306_get_font(uint8_t character) {
+    if (character >= 'a' && character <= 'z') {
+        return character - 'a'; // Para letras minúsculas, começa do índice 0
+    }
+    else if (character == ' ') {
+        return -1; // Para espaços, retorna um valor negativo para ignorar
+    }
+    return 0; // Qualquer outro caractere retorna 0, ou pode ser tratado conforme necessário
 }
+
+
 
 // Desenha um único caractere no display
 void ssd1306_draw_char(uint8_t *ssd, int16_t x, int16_t y, uint8_t character) {
@@ -153,14 +153,15 @@ void ssd1306_draw_char(uint8_t *ssd, int16_t x, int16_t y, uint8_t character) {
 
     y = y / 8;
 
-    character = toupper(character);
-    int idx = ssd1306_get_font(character);
-    int fb_idx = y * 128 + x;
+    int idx = ssd1306_get_font(character); // Não converter para maiúscula
+    if (idx < 0) return; // Garante que caracteres inválidos (como espaços) não sejam desenhados
 
+    int fb_idx = y * 128 + x;
     for (int i = 0; i < 8; i++) {
         ssd[fb_idx++] = font[idx * 8 + i];
     }
 }
+
 
 // Desenha uma string, chamando a função de desenhar caractere várias vezes
 void ssd1306_draw_string(uint8_t *ssd, int16_t x, int16_t y, char *string) {
